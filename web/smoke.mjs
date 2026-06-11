@@ -14,7 +14,7 @@ page.on('console', (m) => {
 })
 
 await page.goto(URL)
-await page.waitForSelector('text=Learning Tic-Tac-Toe by Watching')
+await page.waitForSelector('text=Learning Tic-Tac-Toe')
 await page.screenshot({ path: `${SHOT_DIR}/01-initial.png` })
 
 // stat card should show the final checkpoint with zero mistakes
