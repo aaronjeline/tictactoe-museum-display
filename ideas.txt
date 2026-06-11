@@ -1,0 +1,36 @@
+Level 1 — "What is it looking at?" (tap a verdict)
+
+  After the network evaluates a move, tap that cell (or its meter reading) to get an attribution overlay on the board itself:
+  each existing mark glows by how much it pushed the verdict — computed by occlusion (re-evaluate with that mark removed, show
+  the swing). On the must-block board I probed, the two threat X's carry +1.7 and +1.0 of the −0.99 verdict while the irrelevant
+  center O carries 0.01 — visitors would see the network literally staring at the threat. No ML literacy required; it lives on
+  the board they already understand; computed live in the browser (≤18 extra forward passes, microseconds).
+
+  Level 2 — "Meet a neuron" (tap a node in the network)
+
+  Tap any hidden node → a card shows its incoming weights drawn as two mini 3×3 boards ("its pieces" / "opponent's pieces" planes
+  — same encoding visitors already saw), its live activation, and its pull on the final verdict. This works because the
+  receptive fields are genuinely legible: the most influential neurons are line detectors — one watches "my middle column vs.
+  theirs," another the middle row, another is a top-row threat alarm (positive on their top row, −2 on mine). For neurons whose
+  weights align cleanly with one of the 8 lines, we can auto-caption them ("watches the middle column"). The weights are already
+  shipped in the JSON — no export changes.
+
+  Level 3 — "Its vocabulary" (the full gallery)
+
+  A drawer showing all 64 first-layer neurons as mini receptive-field cards, sorted by influence on the verdict. The payoff is
+  combining it with the existing scrubber: cards morph as you scrub, so visitors watch detectors crystallize out of noise — at
+  "Untrained" every card is static; by gen 15 the top cards are crisp rows, columns, and diagonals. Again zero new data needed.
+
+  Level 4 — "When did it learn what?" (skill timeline)
+
+  A chart over the 17 checkpoints alongside the scrubber: takes-the-win %, blocks-the-threat %, and mistakes-remaining (the last
+  is already exported). The annotated story writes itself: watching random games teaches winning before defending; self-play
+  teaches defense; the long tail is scrubbing out rare mistakes. Needs one addition to export_web.py (~30 lines, reusing the game
+  logic — about a minute of compute), with the filtered "only where it matters" definitions for honesty.
+
+  The four levels form a natural depth gradient — board → single neuron → all neurons → training history — and each is a tap away
+  from something already on screen (a move's verdict, a node in the canvas, the scrubber). Nothing requires a backend; levels
+  1–3 use data already in the bundle.
+
+  If you want these, I'd build them in that order — Level 1 and 4 are the highest insight-per-effort; Level 2/3 share one "neuron
+  card" component. Want me to plan the implementation?

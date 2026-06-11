@@ -18,6 +18,15 @@ export interface SideRecord {
   l: number
 }
 
+export interface Skills {
+  /** Fraction of value-required immediate wins the greedy net takes. */
+  takesWin: number
+  /** Fraction of must-block single threats (in non-lost positions) it blocks. */
+  blocksThreat: number
+  winPositions: number
+  blockPositions: number
+}
+
 export interface CheckpointStats {
   gamesWatched: number
   loss: number | null
@@ -25,6 +34,7 @@ export interface CheckpointStats {
   losingBlunders: number
   missedWins: number
   positionsChecked: number
+  skills: Skills
 }
 
 export interface Checkpoint {

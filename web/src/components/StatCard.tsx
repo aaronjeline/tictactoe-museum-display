@@ -31,6 +31,13 @@ export function StatCard({ ckpt }: { ckpt: Checkpoint }) {
             <span className="of"> in {ckpt.stats.positionsChecked.toLocaleString('en-US')} positions</span>
           </dd>
         </div>
+        <div>
+          <dt>skills</dt>
+          <dd>
+            takes wins {(100 * ckpt.stats.skills.takesWin).toFixed(0)}% ·{' '}
+            blocks {(100 * ckpt.stats.skills.blocksThreat).toFixed(0)}%
+          </dd>
+        </div>
       </dl>
     </div>
   )

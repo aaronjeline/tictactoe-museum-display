@@ -31,7 +31,7 @@ export function useThinking(
   toMove: Player,
   netSide: Player,
   gameOver: boolean,
-  onMove: (move: number) => void,
+  onMove: (move: number, value: number) => void,
 ) {
   const [state, setState] = useState<Thinking>(IDLE)
   const onMoveRef = useRef(onMove)
@@ -66,7 +66,7 @@ export function useThinking(
     at(tEnd, () =>
       setState({ active: true, current: chosen, reveal: 4, best: chosen, committing: true }),
     )
-    at(tEnd + COMMIT_MS, () => onMoveRef.current(chosen.move))
+    at(tEnd + COMMIT_MS, () => onMoveRef.current(chosen.move, chosen.value))
     return () => timers.forEach(clearTimeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [netTurn, boardKey, netSide, weights])

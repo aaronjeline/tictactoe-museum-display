@@ -56,6 +56,35 @@ for (let i = 0; i < 2; i++) {
 await page.screenshot({ path: `${SHOT_DIR}/03-midgame.png` })
 console.log('STATUS midgame:', await page.locator('.status').innerText())
 
+// --- Level 1: attribution overlay ---
+const whyBtn = page.locator('.caption-row .why')
+if (await whyBtn.isVisible()) {
+  console.log('WHY button:', await whyBtn.innerText())
+  await whyBtn.click()
+  const badges = await page.locator('.attr-badge').count()
+  console.log('attribution badges shown:', badges)
+  await page.screenshot({ path: `${SHOT_DIR}/03b-attribution.png` })
+  await whyBtn.click() // hide
+} else {
+  console.log('WHY button: not visible (unexpected)')
+}
+
+// --- Level 2: tap an h1 neuron ---
+const canvas = page.locator('.network-canvas')
+const box = await canvas.boundingBox()
+const pitch = Math.min(box.width * 0.028, box.height * 0.1)
+await page.mouse.click(box.x + box.width * 0.4 + 0.5 * pitch, box.y + box.height * 0.52 + 0.5 * pitch)
+await page.waitForSelector('.neuron-card', { timeout: 3000 })
+console.log('NEURON CARD:', (await page.locator('.neuron-card').innerText()).replace(/\n/g, ' | '))
+await page.screenshot({ path: `${SHOT_DIR}/03c-neuron-card.png` })
+await page.locator('.neuron-card .close').click()
+
+// --- Level 3: detector gallery at gen15 ---
+await page.locator('.mode-toggle').click()
+await page.waitForTimeout(400)
+await page.screenshot({ path: `${SHOT_DIR}/03d-gallery-gen15.png` })
+await page.locator('.mode-toggle').click()
+
 // scrub to the untrained checkpoint — game resets, weights morph
 await page.locator('.scrubber input[type=range]').fill('0')
 await page.waitForTimeout(900) // let the morph finish
@@ -82,6 +111,20 @@ for (let i = 0; i < 5; i++) {
 }
 console.log('STATUS end of untrained game:', await page.locator('.status').innerText())
 await page.screenshot({ path: `${SHOT_DIR}/05-untrained-game.png` })
+
+// --- Level 3 again: gallery should be noise at the untrained checkpoint ---
+await page.locator('.mode-toggle').click()
+await page.waitForTimeout(800) // morph settles
+await page.screenshot({ path: `${SHOT_DIR}/06-gallery-untrained.png` })
+await page.locator('.mode-toggle').click()
+
+// --- Level 4: skill chart click scrubs ---
+console.log('SKILL LEGEND (untrained):', await page.locator('.skill-legend').innerText())
+await page.locator('.skill-chart .hit').nth(8).click() // -> Generation 7
+await page.waitForTimeout(700)
+console.log('STAT after chart click:', await page.locator('.stat-card .stat-title').innerText())
+console.log('SKILL LEGEND (gen 7):', await page.locator('.skill-legend').innerText())
+await page.screenshot({ path: `${SHOT_DIR}/07-skill-chart.png` })
 
 console.log(errors.length ? `ERRORS:\n${errors.join('\n')}` : 'no console/page errors')
 await browser.close()

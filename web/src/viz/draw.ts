@@ -202,7 +202,53 @@ export function drawLabels(ctx: CanvasRenderingContext2D, lay: Layout, h: number
   ctx.textAlign = 'center'
   ctx.fillText('its pieces', lay.input[4].x, lay.input[0].y - lay.inputCell * 1.4)
   ctx.fillText("opponent's", lay.input[13].x, lay.input[9].y - lay.inputCell * 1.4)
-  ctx.fillText('64 neurons', lay.h1[3].x + (lay.h1[4].x - lay.h1[3].x) / 2, h * 0.97)
+  ctx.fillText('64 neurons — tap one', lay.h1[3].x + (lay.h1[4].x - lay.h1[3].x) / 2, h * 0.97)
   ctx.fillText('64 neurons', lay.h2[3].x + (lay.h2[4].x - lay.h2[3].x) / 2, h * 0.97)
   ctx.fillText('verdict', lay.out.x, h * 0.97)
+}
+
+/** Highlight one h1 neuron: ring it and draw its incoming/outgoing weights
+ * at full strength on top of the ambient picture. */
+export function drawSelection(
+  ctx: CanvasRenderingContext2D,
+  lay: Layout,
+  w: Weights,
+  n: number,
+): void {
+  const p = lay.h1[n]
+  // incoming from the input planes
+  let maxIn = 1e-9
+  for (let i = 0; i < 18; i++) maxIn = Math.max(maxIn, Math.abs(w.W1[n * 18 + i]))
+  ctx.lineWidth = 1.8
+  for (let i = 0; i < 18; i++) {
+    const v = w.W1[n * 18 + i]
+    ctx.globalAlpha = Math.min(1, (Math.abs(v) / maxIn) * 0.95)
+    ctx.strokeStyle = v >= 0 ? POS : NEG
+    ctx.beginPath()
+    ctx.moveTo(lay.input[i].x, lay.input[i].y)
+    ctx.lineTo(p.x, p.y)
+    ctx.stroke()
+  }
+  // outgoing into h2
+  let maxOut = 1e-9
+  for (let j = 0; j < 64; j++) maxOut = Math.max(maxOut, Math.abs(w.W2[j * 64 + n]))
+  ctx.lineWidth = 1.2
+  for (let j = 0; j < 64; j++) {
+    const v = w.W2[j * 64 + n]
+    const a = Math.abs(v) / maxOut
+    if (a < 0.25) continue
+    ctx.globalAlpha = a * 0.8
+    ctx.strokeStyle = v >= 0 ? POS : NEG
+    ctx.beginPath()
+    ctx.moveTo(p.x, p.y)
+    ctx.lineTo(lay.h2[j].x, lay.h2[j].y)
+    ctx.stroke()
+  }
+  // selection ring
+  ctx.globalAlpha = 1
+  ctx.strokeStyle = '#e8e8f0'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(p.x, p.y, lay.nodeR * 2.4, 0, Math.PI * 2)
+  ctx.stroke()
 }

@@ -16,9 +16,12 @@ import random
 
 import torch
 
+import minimax
 from agents import NetAgent, RandomAgent
 from evaluate import blunder_check, play_match
+from game import apply_move, legal_moves, winner
 from model import load
+from selfplay import all_reachable_positions
 
 STATS_SEED = 99
 GAMES_PER_SIDE = 250
@@ -49,6 +52,55 @@ def export_weights(net):
     return out
 
 
+def _winning_moves(board, player):
+    return [m for m in legal_moves(board)
+            if winner(apply_move(board, m, player)) == player]
+
+
+def _skill_position_sets():
+    """Two checkpoint-independent probe sets over all reachable positions.
+
+    win_set: the mover has an immediate winning move AND every non-winning
+    move forfeits the forced win — so taking the win is value-required.
+    block_set: no immediate win, the opponent threatens exactly one winning
+    cell, and the position is not already lost — so blocking is the only
+    move that avoids defeat. With these filters a zero-mistake player must
+    score 100% on both.
+    """
+    win_set, block_set = [], []
+    for board_t, player in all_reachable_positions():
+        board = list(board_t)
+        wins = _winning_moves(board, player)
+        if wins:
+            others = [m for m in legal_moves(board) if m not in wins]
+            if all(-minimax.solve(apply_move(board, m, player), -player) < 1
+                   for m in others):
+                win_set.append((board, player, set(wins)))
+        else:
+            threats = _winning_moves(board, -player)
+            if len(threats) == 1 and minimax.solve(board, player) > -1:
+                block_set.append((board, player, threats[0]))
+    return win_set, block_set
+
+
+_SKILL_SETS = {}
+
+
+def skill_stats(net):
+    if not _SKILL_SETS:
+        _SKILL_SETS["win"], _SKILL_SETS["block"] = _skill_position_sets()
+    win_set, block_set = _SKILL_SETS["win"], _SKILL_SETS["block"]
+    agent = NetAgent(net)
+    takes = sum(agent.select_move(b, p) in ws for b, p, ws in win_set)
+    blocks = sum(agent.select_move(b, p) == c for b, p, c in block_set)
+    return {
+        "takesWin": round(takes / len(win_set), 4),
+        "blocksThreat": round(blocks / len(block_set), 4),
+        "winPositions": len(win_set),
+        "blockPositions": len(block_set),
+    }
+
+
 def checkpoint_stats(net, meta):
     rng = random.Random(STATS_SEED)
     res = play_match(NetAgent(net), RandomAgent(rng=rng), GAMES_PER_SIDE)
@@ -64,6 +116,7 @@ def checkpoint_stats(net, meta):
         "losingBlunders": blunders,
         "missedWins": missed,
         "positionsChecked": checked,
+        "skills": skill_stats(net),
     }
 
 
@@ -115,11 +168,19 @@ def main():
         })
         loaded.append((ckpt_id, net))
         print("%-6s blunders %4d  missed wins %3d  vs random %3dW/%3dD/%3dL (as X)"
+              "  takes win %5.1f%%  blocks %5.1f%%"
               % (ckpt_id, stats["losingBlunders"], stats["missedWins"],
-                 *play_x_summary(stats)))
+                 *play_x_summary(stats),
+                 100 * stats["skills"]["takesWin"],
+                 100 * stats["skills"]["blocksThreat"]))
+
+    final_skills = entries[-1]["stats"]["skills"]
+    assert final_skills["takesWin"] == 1.0 and final_skills["blocksThreat"] == 1.0, (
+        "final checkpoint must be perfect on value-required skills: %r" % final_skills
+    )
 
     doc = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "hidden": loaded[0][1].hidden,
         "checkpoints": entries,
         "testVectors": test_vectors(loaded),
