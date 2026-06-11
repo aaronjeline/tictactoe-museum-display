@@ -1,0 +1,3 @@
+# Documentation only — both are commonly preinstalled.
+torch>=2.0
+numpy>=1.24
