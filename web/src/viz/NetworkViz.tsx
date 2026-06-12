@@ -1,31 +1,46 @@
 // The network diagram: one DPR-aware canvas, redrawn by requestAnimationFrame.
 // Weight changes (scrubbing the timeline) morph via a 600 ms lerp so visitors
-// can watch edges strengthen and flip sign as the network learns. First-layer
-// (h1) nodes are tappable: selecting one highlights its connections and opens
+// can watch edges strengthen and flip sign as the network learns. Both hidden
+// layers are tappable: selecting a neuron highlights its connections and opens
 // a card describing what it has learned to detect.
 import { useEffect, useRef } from 'react'
 import type { Activations, Weights } from '../model/types'
 import { makeLayout } from './layout'
-import { buildDrawList, drawEdges, drawLabels, drawNodes, drawSelection } from './draw'
+import {
+  buildDrawList,
+  drawEdges,
+  drawLabels,
+  drawNodes,
+  drawSelection,
+  drawVoteHighlights,
+} from './draw'
 import { stepMorph, useMorphedWeights } from './useMorphedWeights'
+
+export interface Selection {
+  layer: 1 | 2
+  n: number
+}
 
 interface Props {
   weights: Weights
   acts: Activations | null
   reveal: number
-  selectedNeuron: number | null
-  onSelectNeuron: (n: number | null) => void
+  selected: Selection | null
+  onSelect: (s: Selection | null) => void
+  /** h2 neurons casting the largest votes for the verdict on screen. */
+  voteHighlights: number[] | null
 }
 
-export function NetworkViz({ weights, acts, reveal, selectedNeuron, onSelectNeuron }: Props) {
+export function NetworkViz({ weights, acts, reveal, selected, onSelect, voteHighlights }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const morph = useMorphedWeights(weights)
-  const live = useRef({ acts, reveal, selected: selectedNeuron })
+  const live = useRef({ acts, reveal, selected, voteHighlights })
   live.current.acts = acts
   live.current.reveal = reveal
-  live.current.selected = selectedNeuron
-  const selectRef = useRef(onSelectNeuron)
-  selectRef.current = onSelectNeuron
+  live.current.selected = selected
+  live.current.voteHighlights = voteHighlights
+  const selectRef = useRef(onSelect)
+  selectRef.current = onSelect
 
   useEffect(() => {
     const canvas = canvasRef.current!
@@ -54,23 +69,25 @@ export function NetworkViz({ weights, acts, reveal, selectedNeuron, onSelectNeur
     const ro = new ResizeObserver(resize)
     ro.observe(canvas.parentElement!)
 
-    const hitH1 = (e: PointerEvent | MouseEvent): number | null => {
+    const hit = (e: PointerEvent | MouseEvent): Selection | null => {
       const rect = canvas.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
-      const r = layout.nodeR * 2.4
-      for (let n = 0; n < 64; n++) {
-        const p = layout.h1[n]
-        if ((p.x - x) ** 2 + (p.y - y) ** 2 <= r * r) return n
+      const r2 = (layout.nodeR * 2.4) ** 2
+      for (const [layer, pts] of [[1, layout.h1], [2, layout.h2]] as const) {
+        for (let n = 0; n < 64; n++) {
+          if ((pts[n].x - x) ** 2 + (pts[n].y - y) ** 2 <= r2) return { layer, n }
+        }
       }
       return null
     }
     const onClick = (e: MouseEvent) => {
-      const n = hitH1(e)
-      selectRef.current(n === live.current.selected ? null : n)
+      const s = hit(e)
+      const cur = live.current.selected
+      selectRef.current(s !== null && cur !== null && s.layer === cur.layer && s.n === cur.n ? null : s)
     }
     const onMove = (e: PointerEvent) => {
-      canvas.style.cursor = hitH1(e) !== null ? 'pointer' : 'default'
+      canvas.style.cursor = hit(e) !== null ? 'pointer' : 'default'
     }
     canvas.addEventListener('click', onClick)
     canvas.addEventListener('pointermove', onMove)
@@ -85,7 +102,8 @@ export function NetworkViz({ weights, acts, reveal, selectedNeuron, onSelectNeur
       ctx.clearRect(0, 0, w, h)
       drawEdges(ctx, drawList, s.reveal)
       drawNodes(ctx, layout, s.acts, s.reveal)
-      if (s.selected !== null) drawSelection(ctx, layout, morph.current.shown, s.selected)
+      if (s.voteHighlights && s.reveal >= 4) drawVoteHighlights(ctx, layout, morph.current.shown, s.voteHighlights)
+      if (s.selected !== null) drawSelection(ctx, layout, morph.current.shown, s.selected.layer, s.selected.n)
       drawLabels(ctx, layout, h)
       raf = requestAnimationFrame(frame)
     }

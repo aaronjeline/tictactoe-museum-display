@@ -367,6 +367,57 @@ body,
   color: var(--faint);
 }
 
+.neuron-meta .pos {
+  color: var(--pos);
+}
+
+.neuron-meta .neg {
+  color: var(--neg);
+}
+
+/* ---- h2 card mini boards ---- */
+.mini-boards {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+
+.mini-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: clamp(48px, 4.5vw, 64px);
+  aspect-ratio: 1;
+}
+
+.mini-cell {
+  background: #1a1a26;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(10px, 1vw, 14px);
+  line-height: 1;
+}
+
+.mini-cell.pos {
+  color: var(--pos);
+}
+
+.mini-cell.neg {
+  color: var(--neg);
+}
+
+/* ---- vote tally ---- */
+.vote-tally {
+  text-align: center;
+  font-size: clamp(11px, 1vw, 14px);
+  color: var(--dim);
+  min-height: 1.4em;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
+
 /* ---- skill chart ---- */
 .timeline-left {
   flex: 1;

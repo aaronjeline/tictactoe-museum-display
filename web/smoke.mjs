@@ -26,6 +26,13 @@ const cells = page.locator('.board .cell')
 await cells.nth(4).click()
 await page.waitForTimeout(1300) // mid-deliberation
 await page.screenshot({ path: `${SHOT_DIR}/01b-thinking.png` })
+// the tally is only on screen while the output stage is revealed — poll for it
+await page.waitForFunction(
+  () => (document.querySelector('.vote-tally')?.textContent ?? '').includes('neuron'),
+  { timeout: 5000 },
+)
+console.log('VOTE TALLY (mid-thinking):', (await page.locator('.vote-tally').innerText()).trim())
+await page.screenshot({ path: `${SHOT_DIR}/01c-vote-tally.png` })
 // the net deliberates ~3s per move; wait for our turn or game end
 async function waitTurn() {
   await page.waitForTimeout(250) // let "thinking…" appear (or the game end)
@@ -77,6 +84,13 @@ await page.mouse.click(box.x + box.width * 0.4 + 0.5 * pitch, box.y + box.height
 await page.waitForSelector('.neuron-card', { timeout: 3000 })
 console.log('NEURON CARD:', (await page.locator('.neuron-card').innerText()).replace(/\n/g, ' | '))
 await page.screenshot({ path: `${SHOT_DIR}/03c-neuron-card.png` })
+await page.locator('.neuron-card .close').click()
+
+// --- second layer: tap h2[37], the strongest win detector (row 4, col 5) ---
+await page.mouse.click(box.x + box.width * 0.66 + 1.5 * pitch, box.y + box.height * 0.52 + 0.5 * pitch)
+await page.waitForSelector('.neuron-card', { timeout: 5000 })
+console.log('H2 CARD:', (await page.locator('.neuron-card').innerText()).replace(/\n/g, ' | '))
+await page.screenshot({ path: `${SHOT_DIR}/03e-h2-card.png` })
 await page.locator('.neuron-card .close').click()
 
 // --- Level 3: detector gallery at gen15 ---

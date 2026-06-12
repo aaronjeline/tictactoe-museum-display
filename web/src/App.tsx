@@ -5,12 +5,15 @@ import { applyMove, winningLine } from './model/game'
 import { afterstateValues } from './model/net'
 import { attribution } from './model/attribution'
 import { influenceRanks } from './model/neurons'
+import { topVotes } from './model/h2'
 import { useGame } from './hooks/useGame'
 import { useThinking } from './hooks/useThinking'
 import { NetworkViz } from './viz/NetworkViz'
+import type { Selection } from './viz/NetworkViz'
 import { Gallery } from './viz/Gallery'
 import { Board } from './components/Board'
 import { Controls } from './components/Controls'
+import { H2Card } from './components/H2Card'
 import { NeuronCard } from './components/NeuronCard'
 import { Placard } from './components/Placard'
 import { Scrubber } from './components/Scrubber'
@@ -39,7 +42,7 @@ export default function App() {
   const [humanSide, setHumanSide] = useState<Player>(1)
   const [assist, setAssist] = useState(false)
   const [vizMode, setVizMode] = useState<'network' | 'gallery'>('network')
-  const [selectedNeuron, setSelectedNeuron] = useState<number | null>(null)
+  const [selected, setSelected] = useState<Selection | null>(null)
   const [lastNetMove, setLastNetMove] = useState<LastNetMove | null>(null)
   const [showWhy, setShowWhy] = useState(false)
   const { board, toMove, result, play, reset } = useGame()
@@ -80,10 +83,16 @@ export default function App() {
   }
   const switchCkpt = (i: number) => {
     setCkptIndex(i)
-    setSelectedNeuron(null)
+    setSelected(null)
     clearTransients()
     reset()
   }
+
+  // the verdict's strongest votes, shown once the output stage is revealed
+  const votes = useMemo(() => {
+    if (!thinking.current || thinking.reveal < 4) return null
+    return topVotes(ckpt.weights, thinking.current.acts.h2, 3)
+  }, [thinking, ckpt.weights])
   const switchSide = (s: Player) => {
     setHumanSide(s)
     clearTransients()
@@ -150,24 +159,33 @@ export default function App() {
                 weights={ckpt.weights}
                 acts={thinking.current?.acts ?? null}
                 reveal={thinking.reveal}
-                selectedNeuron={selectedNeuron}
-                onSelectNeuron={setSelectedNeuron}
+                selected={selected}
+                onSelect={setSelected}
+                voteHighlights={votes?.map((v) => v.neuron) ?? null}
               />
             ) : (
               <Gallery weights={ckpt.weights} sortOrder={GALLERY_ORDER} />
             )}
-            {vizMode === 'network' && selectedNeuron !== null && (
+            {vizMode === 'network' && selected?.layer === 1 && (
               <NeuronCard
                 weights={ckpt.weights}
-                neuron={selectedNeuron}
+                neuron={selected.n}
                 acts={thinking.current?.acts ?? null}
-                onClose={() => setSelectedNeuron(null)}
+                onClose={() => setSelected(null)}
+              />
+            )}
+            {vizMode === 'network' && selected?.layer === 2 && (
+              <H2Card
+                weights={ckpt.weights}
+                neuron={selected.n}
+                acts={thinking.current?.acts ?? null}
+                onClose={() => setSelected(null)}
               />
             )}
             <button
               className="mode-toggle"
               onClick={() => {
-                setSelectedNeuron(null)
+                setSelected(null)
                 setVizMode(vizMode === 'network' ? 'gallery' : 'network')
               }}
             >
@@ -181,6 +199,14 @@ export default function App() {
                 {showWhy ? 'hide' : `why cell ${lastNetMove.move + 1}?`}
               </button>
             )}
+          </div>
+          <div className="vote-tally">
+            {votes
+              ? 'strongest votes on this verdict:  ' +
+                votes
+                  .map((v) => `neuron ${v.neuron + 1}: ${v.vote >= 0 ? '+' : ''}${v.vote.toFixed(2)}`)
+                  .join('   ·   ')
+              : ' '}
           </div>
         </div>
       </div>

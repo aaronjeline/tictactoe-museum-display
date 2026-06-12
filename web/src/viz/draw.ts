@@ -203,52 +203,76 @@ export function drawLabels(ctx: CanvasRenderingContext2D, lay: Layout, h: number
   ctx.fillText('its pieces', lay.input[4].x, lay.input[0].y - lay.inputCell * 1.4)
   ctx.fillText("opponent's", lay.input[13].x, lay.input[9].y - lay.inputCell * 1.4)
   ctx.fillText('64 neurons — tap one', lay.h1[3].x + (lay.h1[4].x - lay.h1[3].x) / 2, h * 0.97)
-  ctx.fillText('64 neurons', lay.h2[3].x + (lay.h2[4].x - lay.h2[3].x) / 2, h * 0.97)
+  ctx.fillText('64 neurons — tap one', lay.h2[3].x + (lay.h2[4].x - lay.h2[3].x) / 2, h * 0.97)
   ctx.fillText('verdict', lay.out.x, h * 0.97)
 }
 
-/** Highlight one h1 neuron: ring it and draw its incoming/outgoing weights
- * at full strength on top of the ambient picture. */
+function strokeFan(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  others: Pt[],
+  weight: (i: number) => number,
+  width: number,
+  minAlpha: number,
+  outward: boolean,
+): void {
+  let max = 1e-9
+  for (let i = 0; i < others.length; i++) max = Math.max(max, Math.abs(weight(i)))
+  ctx.lineWidth = width
+  for (let i = 0; i < others.length; i++) {
+    const v = weight(i)
+    const a = Math.abs(v) / max
+    if (a < minAlpha) continue
+    ctx.globalAlpha = Math.min(1, a * 0.9)
+    ctx.strokeStyle = v >= 0 ? POS : NEG
+    ctx.beginPath()
+    ctx.moveTo(outward ? center.x : others[i].x, outward ? center.y : others[i].y)
+    ctx.lineTo(outward ? others[i].x : center.x, outward ? others[i].y : center.y)
+    ctx.stroke()
+  }
+}
+
+/** Highlight one hidden neuron: ring it and draw its incoming/outgoing
+ * weights at full strength on top of the ambient picture. */
 export function drawSelection(
   ctx: CanvasRenderingContext2D,
   lay: Layout,
   w: Weights,
+  layer: 1 | 2,
   n: number,
 ): void {
-  const p = lay.h1[n]
-  // incoming from the input planes
-  let maxIn = 1e-9
-  for (let i = 0; i < 18; i++) maxIn = Math.max(maxIn, Math.abs(w.W1[n * 18 + i]))
-  ctx.lineWidth = 1.8
-  for (let i = 0; i < 18; i++) {
-    const v = w.W1[n * 18 + i]
-    ctx.globalAlpha = Math.min(1, (Math.abs(v) / maxIn) * 0.95)
-    ctx.strokeStyle = v >= 0 ? POS : NEG
-    ctx.beginPath()
-    ctx.moveTo(lay.input[i].x, lay.input[i].y)
-    ctx.lineTo(p.x, p.y)
-    ctx.stroke()
+  const p = layer === 1 ? lay.h1[n] : lay.h2[n]
+  if (layer === 1) {
+    strokeFan(ctx, p, lay.input, (i) => w.W1[n * 18 + i], 1.8, 0, false)
+    strokeFan(ctx, p, lay.h2, (j) => w.W2[j * 64 + n], 1.2, 0.25, true)
+  } else {
+    strokeFan(ctx, p, lay.h1, (i) => w.W2[n * 64 + i], 1.2, 0.25, false)
+    strokeFan(ctx, p, [lay.out], () => w.W3[n], 2.2, 0, true)
   }
-  // outgoing into h2
-  let maxOut = 1e-9
-  for (let j = 0; j < 64; j++) maxOut = Math.max(maxOut, Math.abs(w.W2[j * 64 + n]))
-  ctx.lineWidth = 1.2
-  for (let j = 0; j < 64; j++) {
-    const v = w.W2[j * 64 + n]
-    const a = Math.abs(v) / maxOut
-    if (a < 0.25) continue
-    ctx.globalAlpha = a * 0.8
-    ctx.strokeStyle = v >= 0 ? POS : NEG
-    ctx.beginPath()
-    ctx.moveTo(p.x, p.y)
-    ctx.lineTo(lay.h2[j].x, lay.h2[j].y)
-    ctx.stroke()
-  }
-  // selection ring
   ctx.globalAlpha = 1
   ctx.strokeStyle = '#e8e8f0'
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.arc(p.x, p.y, lay.nodeR * 2.4, 0, Math.PI * 2)
   ctx.stroke()
+}
+
+/** Ring the h2 neurons casting the strongest votes on the current verdict,
+ * colored by the direction they pull. */
+export function drawVoteHighlights(
+  ctx: CanvasRenderingContext2D,
+  lay: Layout,
+  w: Weights,
+  neurons: number[],
+): void {
+  ctx.lineWidth = 1.6
+  for (const n of neurons) {
+    const p = lay.h2[n]
+    ctx.globalAlpha = 0.85
+    ctx.strokeStyle = w.W3[n] >= 0 ? POS : NEG
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, lay.nodeR * 2.1, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1
 }

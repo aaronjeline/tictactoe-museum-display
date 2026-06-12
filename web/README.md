@@ -15,11 +15,18 @@ Four progressive layers let a visitor dig into what the network has learned:
    strip overlays the board with each mark's contribution to the verdict
    (occlusion: re-evaluate with the mark removed, show the swing). On a
    blocked threat, the verdict visibly rests on the threat marks.
-2. **Tap a first-layer neuron** in the network view — a card shows its
-   incoming weights as two 3×3 heatmaps (the same two planes the network
-   sees), its rank in pull on the verdict, and an auto-generated caption
-   when the weights concentrate on one winning line ("watches the right
-   column — an alarm: fires as the opponent claims it").
+2. **Tap any hidden neuron** in the network view. First-layer cards show
+   the neuron's incoming weights as two 3×3 heatmaps (the same two planes
+   the network sees) with an auto-generated caption when they concentrate
+   on one winning line ("watches the right column — an alarm: fires as the
+   opponent claims it"). Second-layer neurons aren't board-shaped, so their
+   cards characterize behavior instead: the boards they fire hardest on
+   (computed over all 5,477 possible inputs), a concept label when activity
+   tracks one ("win detector" / "threat alarm"), and the direction and size
+   of their vote on the verdict. Dead neurons (9 of 64 — training left them
+   unused) say so. While the network thinks, the verdict's three strongest
+   votes are named under the caption and their neurons ringed in the canvas
+   — an exact decomposition, since the verdict is tanh(bias + 64 votes).
 3. **"See all 64 detectors"** — swaps the network for a gallery of every
    first-layer receptive field, sorted by influence at the final
    checkpoint. Scrub the timeline and watch line detectors crystallize out
